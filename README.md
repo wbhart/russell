@@ -1,4 +1,4 @@
-# PEANO Automated Mathematician
+# RUSSELL Automated Mathematician
 
 This is a project to automatically prove mathematical theorems expressed in the language of second order logic.
 
