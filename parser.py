@@ -2,20 +2,14 @@ from parsimonious.grammar import Grammar
 from parsimonious.nodes import NodeVisitor, Node
 from parsimonious import exceptions
 from pprint import pprint
-from enum import Enum
 from copy import deepcopy
 
-grammar_debug = True # whether to print debug statements
+from nodes import VarNode, ApplNode, ConstNode, TupleNode, \
+     QuantifierNode, generate_mappings, str_mappings, \
+     repr_mappings, fixity
+from definitions import Fixity, Associativity
 
-class Fixity(Enum):
-    PREFIX = "prefix"
-    INFIX = "infix"
-    POSTFIX = "postfix"
-
-class Associativity(Enum):
-    LEFT = "left"
-    RIGHT = "right"
-    NON = "non"
+grammar_debug = True  # whether to print debug statements
 
 # Sets
 set_types = [('Set', r'Set', 'Set')]
@@ -304,8 +298,9 @@ def generate_parsimonious_grammar(operators, predicates, functions, constants, t
 
     # Append terminals
     atomic_definitions.append(f"""
-atomic = variable / integer / {' / '.join([const[0] for const in constants])} / paren_formula / {' / '.join(term_rules)}
+atomic = variable / integer / {' / '.join([const[0] for const in constants])} / paren_formula / user_function / {' / '.join([f'{function.name.lower()}_fn' for function in functions])}
 """)
+
     term_definitions.append(f"term = {' / '.join(term_rules)}")
 
     # Rename the original formula rule to logical_formula
@@ -350,6 +345,210 @@ space = ~"\s*"
         print(grammar)
     return grammar
 
+class MathNodeVisitor(NodeVisitor):
+    def visit_variable(self, node, visited_children):
+        return VarNode(node.text)
+
+    def visit_atomic(self, node, visited_children):
+        return visited_children[0]
+
+    def visit_term_4(self, node, visited_children):
+        print(f"visit_term_4: number of children = {len(visited_children)}")
+        for i, child in enumerate(visited_children):
+            print(f"visit_term_4: child {i} = {child}, type = {type(child)}")
+
+        res = visited_children[1]
+        if visited_children[0]:
+            for operation in visited_children[0]:
+                op_text = operation[1][0].text.strip()
+                op_key = next((k for k, v in repr_mappings.items() if v == op_text), None)
+                if op_key:
+                    op = ConstNode(op_key)
+                    res = ApplNode(op, TupleNode((operation[3], res)))
+                else:
+                    print(f"Unknown operator: {op_text}")
+
+        print(f"visit_term_4: resulting term = {res}")
+        return res
+
+    def visit_term_3(self, node, visited_children):
+        print(f"visit_term_3: number of children = {len(visited_children)}")
+        for i, child in enumerate(visited_children):
+            print(f"visit_term_3: child {i} = {child}, type = {type(child)}")
+
+        res = visited_children[0]
+        if visited_children[1]:
+            for operation in visited_children[1]:
+                op_text = operation[1][0].text.strip()
+                op_key = next((k for k, v in repr_mappings.items() if v == op_text), None)
+                if op_key:
+                    op = ConstNode(op_key)
+                    res = ApplNode(op, TupleNode((res, operation[3])))
+                else:
+                    print(f"Unknown operator: {op_text}")
+
+        print(f"visit_term_3: resulting term = {res}")
+        return res
+
+    def visit_term_2(self, node, visited_children):
+        print(f"visit_term_2: number of children = {len(visited_children)}")
+        for i, child in enumerate(visited_children):
+            print(f"visit_term_2: child {i} = {child}, type = {type(child)}")
+
+        res = visited_children[0]
+        if visited_children[1]:
+            for operation in visited_children[1]:
+                print(f"visit_term_2: operation = {operation}, type = {type(operation)}")
+                if isinstance(operation, list) and len(operation) == 4:
+                    print(f"visit_term_2: operation details = {operation}")
+                    op_text = operation[1][0].text.strip()
+                    op_key = next((k for k, v in repr_mappings.items() if v == op_text), None)
+                    if op_key:
+                        op = ConstNode(op_key)
+                        res = ApplNode(op, TupleNode((res, operation[3])))
+                    else:
+                        print(f"Unknown operator: {op_text}")
+
+        print(f"visit_term_2: resulting term = {res}")
+        return res
+
+    def visit_term_1(self, node, visited_children):
+        print(f"visit_term_1: number of children = {len(visited_children)}")
+        for i, child in enumerate(visited_children):
+            print(f"visit_term_1: child {i} = {child}, type = {type(child)}")
+
+        res = visited_children[0]
+        if visited_children[1]:
+            for operation in visited_children[1]:
+                op_text = operation[1][0].text.strip()
+                op_key = next((k for k, v in repr_mappings.items() if v == op_text), None)
+                if op_key:
+                    op = ConstNode(op_key)
+                    res = ApplNode(op, TupleNode((res, operation[3])))
+                else:
+                    print(f"Unknown operator: {op_text}")
+
+        print(f"visit_term_1: resulting term = {res}")
+        return res
+
+    def visit_term_0(self, node, visited_children):
+        print(f"visit_term_0: number of children = {len(visited_children)}")
+        for i, child in enumerate(visited_children):
+            print(f"visit_term_0: child {i} = {child}, type = {type(child)}")
+
+        res = visited_children[0]
+        if visited_children[1]:
+            for operation in visited_children[1]:
+                op_text = operation[1][0].text.strip()
+                op_key = next((k for k, v in repr_mappings.items() if v == op_text), None)
+                if op_key:
+                    op = ConstNode(op_key)
+                    res = ApplNode(op, TupleNode((res, operation[3])))
+                else:
+                    print(f"Unknown operator: {op_text}")
+
+        print(f"visit_term_0: resulting term = {res}")
+        return res
+
+    def visit_term(self, node, visited_children):
+        print(f"visit_term: number of children = {len(visited_children)}")
+        for i, child in enumerate(visited_children):
+            print(f"visit_term: child {i} = {child}, type = {type(child)}")
+
+        res = visited_children[0]
+        if len(visited_children) > 1 and visited_children[1]:
+            for operation in visited_children[1]:
+                op_text = operation[1][0].text.strip()
+                op_key = next((k for k, v in repr_mappings.items() if v == op_text), None)
+                if op_key:
+                    op = ConstNode(op_key)
+                    res = ApplNode(op, TupleNode((res, operation[3])))
+                else:
+                    print(f"Unknown operator: {op_text}")
+
+        print(f"visit_term: resulting term = {res}")
+        return res
+
+    def visit_element_formula(self, node, visited_children):
+        print(f"visit_element_formula: number of children = {len(visited_children)}")
+        for i, child in enumerate(visited_children):
+            print(f"visit_element_formula: child {i} = {child}, type = {type(child)}")
+
+        left = visited_children[0]
+        right = visited_children[4]
+        op_text = visited_children[2].text.strip()
+        op_key = next((k for k, v in repr_mappings.items() if v == op_text), None)
+        if op_key:
+            op = ConstNode(op_key)
+            element_node = ApplNode(op, TupleNode((left, right)))
+        else:
+            print(f"Unknown operator: {op_text}")
+
+        print(f"visit_element_formula: {element_node}")
+        return element_node
+
+    def visit_atomic_formula(self, node, visited_children):
+        return visited_children[0]
+
+    def visit_logical_implies(self, node, visited_children):
+        print(f"visit_logical_implies: number of children = {len(visited_children)}")
+        for i, child in enumerate(visited_children):
+            print(f"visit_logical_implies: child {i} = {child}, type = {type(child)}")
+
+        res = visited_children[0]
+        if visited_children[1]:
+            for operation in visited_children[1]:
+                print(f"visit_logical_implies: operation = {operation}, type = {type(operation)}")
+                if isinstance(operation, list) and len(operation) == 4:
+                    print(f"visit_logical_implies: operation details = {operation}")
+                    op_text = operation[1][0].text.strip()
+                    op_key = next((k for k, v in repr_mappings.items() if v == op_text), None)
+                    if op_key:
+                        op = ConstNode(op_key)
+                        res = ApplNode(op, TupleNode((res, operation[3])))
+                    else:
+                        print(f"Unknown operator: {op_text}")
+
+        print(f"visit_logical_implies: resulting term = {res}")
+        return res
+
+    def visit_logical_binary(self, node, visited_children):
+        print(f"visit_logical_binary: number of children = {len(visited_children)}")
+        for i, child in enumerate(visited_children):
+            print(f"visit_logical_binary: child {i} = {child}, type = {type(child)}")
+
+        res = visited_children[0]
+        if visited_children[1]:
+            for operation in visited_children[1]:
+                print(f"visit_logical_binary: operation = {operation}, type = {type(operation)}")
+                if isinstance(operation, list) and len(operation) == 4:
+                    print(f"visit_logical_binary: operation details = {operation}")
+                    op_text = operation[1][0].text.strip()
+                    op_key = next((k for k, v in repr_mappings.items() if v == op_text), None)
+                    if op_key:
+                        op = ConstNode(op_key)
+                        res = ApplNode(op, TupleNode((res, operation[3])))
+                    else:
+                        print(f"Unknown operator: {op_text}")
+
+        print(f"visit_logical_binary: resulting term = {res}")
+        return res
+
+    def visit_logical_atomic(self, node, visited_children):
+        return visited_children[0]
+
+    def visit_logical_formula(self, node, visited_children):
+        return visited_children[0]
+
+    def visit_formula(self, node, visited_children):
+        return visited_children[0]
+
+    def visit_space(self, node, visited_children):
+        return None
+
+    def generic_visit(self, node, visited_children):
+        return visited_children or node
+
 # Example usage
 set_spec = create_specification(set_types, set_consts, set_unary_ops, set_binary_ops, set_unary_fns, set_binary_fns, set_unary_preds, set_binary_preds)
 num_spec = create_specification(num_types, num_consts, num_unary_ops, num_binary_ops, num_unary_fns, num_binary_fns, num_unary_preds, num_binary_preds)
@@ -364,3 +563,19 @@ grammar = generate_parsimonious_grammar(operators, predicates, functions, consta
 
 # Create the Grammar object
 formula = Grammar(grammar)
+
+# Generate mappings
+generate_mappings(operators, predicates, functions, constants)
+
+# Create the visitor instance
+visitor = MathNodeVisitor()
+
+# Example usage with parsing
+#example_formula = r'\forall x : \mathbb{N} (x \in z \implies (\exists y (y = x \cup \emptyset)))'
+example_formula = r'x \in z \cup w'
+parsed_tree = formula.parse(example_formula)
+result = visitor.visit(parsed_tree)
+
+# Print the results using repr and str
+print(repr(result))
+print(str(result))
