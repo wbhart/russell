@@ -9,7 +9,7 @@ from nodes import VarNode, ApplNode, ConstNode, TupleNode, \
      repr_mappings, fixity
 from definitions import Fixity, Associativity
 
-grammar_debug = True  # whether to print debug statements
+grammar_debug = False  # whether to print debug statements
 
 # Sets
 set_types = [('Set', r'Set', 'Set')]

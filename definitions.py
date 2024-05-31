@@ -1,4 +1,3 @@
-# definitions.py
 from enum import Enum
 
 class Fixity(Enum):

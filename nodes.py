@@ -1,4 +1,5 @@
 from enum import Enum
+from definitions import Fixity, Associativity
 
 # Global mappings
 str_mappings = {}
@@ -30,26 +31,28 @@ class ApplNode(ParseNode):
     def __repr__(self):
         fn_str = repr(self.fn)
         arg_strs = [repr(arg) for arg in self.args.args]
-        if fixity[self.fn.name] == 'infix':
-            return f" {fn_str} ".join(arg_strs)
-        elif fixity[self.fn.name] == 'prefix':
-            return f"{fn_str}({', '.join(arg_strs)})"
-        elif fixity[self.fn.name] == 'postfix':
-            return f"({', '.join(arg_strs)}){fn_str}"
+        if fixity[self.fn.name] == Fixity.INFIX.value:
+            result = f" {fn_str} ".join(arg_strs)
+        elif fixity[self.fn.name] == Fixity.PREFIX.value:
+            result = f"{fn_str}({', '.join(arg_strs)})"
+        elif fixity[self.fn.name] == Fixity.POSTFIX.value:
+            result = f"({', '.join(arg_strs)}){fn_str}"
         else:
-            return f"{fn_str}({', '.join(arg_strs)})"
+            result = f"{fn_str}({', '.join(arg_strs)})"
+        return result
 
     def __str__(self):
         fn_str = str_mappings.get(self.fn.name, self.fn.name)
         arg_strs = [str(arg) for arg in self.args.args]
-        if fixity[self.fn.name] == 'infix':
-            return f" {fn_str} ".join(arg_strs)
-        elif fixity[self.fn.name] == 'prefix':
-            return f"{fn_str}({', '.join(arg_strs)})"
-        elif fixity[self.fn.name] == 'postfix':
-            return f"({', '.join(arg_strs)}){fn_str}"
+        if fixity[self.fn.name] == Fixity.INFIX.value:
+            result = f" {fn_str} ".join(arg_strs)
+        elif fixity[self.fn.name] == Fixity.PREFIX.value:
+            result = f"{fn_str}({', '.join(arg_strs)})"
+        elif fixity[self.fn.name] == Fixity.POSTFIX.value:
+            result = f"({', '.join(arg_strs)}){fn_str}"
         else:
-            return f"{fn_str}({', '.join(arg_strs)})"
+            result = f"{fn_str}({', '.join(arg_strs)})"
+        return result
 
 class ConstNode(ParseNode):
     def __init__(self, name):
@@ -91,17 +94,17 @@ def generate_mappings(operators, predicates, functions, constants):
     for operator in operators:
         str_mappings[operator.name] = operator.symbol
         repr_mappings[operator.name] = operator.notation
-        fixity[operator.name] = operator.associativity
+        fixity[operator.name] = Fixity.INFIX.value if operator.associativity else operator.associativity.value
 
     for predicate in predicates:
         str_mappings[predicate.name] = predicate.symbol
         repr_mappings[predicate.name] = predicate.notation
-        fixity[predicate.name] = predicate.fixity
+        fixity[predicate.name] = predicate.fixity.value
 
     for function in functions:
         str_mappings[function.name] = function.symbol
         repr_mappings[function.name] = function.notation
-        fixity[function.name] = function.fixity
+        fixity[function.name] = function.fixity.value
 
     for const in constants:
         name, notation, symbol = const
