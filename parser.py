@@ -9,7 +9,7 @@ from nodes import VarNode, ApplNode, ConstNode, TupleNode, \
      repr_mappings, fixity
 from definitions import Fixity, Associativity
 
-grammar_debug = False  # whether to print debug statements
+grammar_debug = True  # whether to print debug statements
 
 # Sets
 set_types = [('Set', r'Set', 'Set')]
@@ -264,17 +264,16 @@ def generate_parsimonious_grammar(operators, predicates, functions, constants, t
         ops_at_level = [op for op in operators if op.precedence == precedence]
         associativity_set = {op.associativity for op in ops_at_level}
         if len(associativity_set) > 1:
-            print(f"Inconsistent associativity detected at precedence level {precedence}")
-            print(f"Operators with conflicting associativity: {ops_at_level}")
             raise ValueError(f"Inconsistent associativity detected at precedence level {precedence}")
 
         associativity = associativity_set.pop()
         op_choices = " / ".join([f'"{op.notation}"' for op in ops_at_level])
 
+        # Rule emission based on associativity
         if associativity == Associativity.LEFT:
-            term_definitions.append(f"{rule_name} = {next_rule} (space ({op_choices}) space {next_rule})*")
-        elif associativity == Associativity.RIGHT:
             term_definitions.append(f"{rule_name} = ({next_rule} space ({op_choices}) space)* {next_rule}")
+        elif associativity == Associativity.RIGHT:
+            term_definitions.append(f"{rule_name} = {next_rule} (space ({op_choices}) space {next_rule})*")
         elif associativity == Associativity.NON:
             term_definitions.append(f"{rule_name} = {next_rule} space ({op_choices}) space {next_rule}")
         else:
@@ -346,6 +345,26 @@ space = ~"\s*"
     return grammar
 
 class MathNodeVisitor(NodeVisitor):
+    def left_rec(self, L, v):
+        """Turn a list L and final value v into a tree. Each element of the list
+        will contain 4 items [left, _, operator, _]. If L is empty only v is returned.
+        """
+        if hasattr(L, '__getitem__') and len(L) > 0:
+            x = L.pop()
+            op_text = x[2][0].text.strip()
+            op_key = next((k for k, v in repr_mappings.items() if v == op_text), None)
+            if op_key:
+                op = ConstNode(op_key)
+                left_child = x[0]
+                if isinstance(left_child, list):
+                    left_child = self.left_rec(left_child, x[0][0])
+                return ApplNode(op, TupleNode((left_child, v)))
+            else:
+                print(f"Unknown operator: {op_text}")
+                return v  # Fallback if operator is unknown
+        else:
+            return v
+
     def visit_variable(self, node, visited_children):
         return VarNode(node.text)
 
@@ -357,16 +376,19 @@ class MathNodeVisitor(NodeVisitor):
         for i, child in enumerate(visited_children):
             print(f"visit_term_4: child {i} = {child}, type = {type(child)}")
 
-        res = visited_children[1]
-        if visited_children[0]:
-            for operation in visited_children[0]:
-                op_text = operation[1][0].text.strip()
-                op_key = next((k for k, v in repr_mappings.items() if v == op_text), None)
-                if op_key:
-                    op = ConstNode(op_key)
-                    res = ApplNode(op, TupleNode((operation[3], res)))
-                else:
-                    print(f"Unknown operator: {op_text}")
+        res = visited_children[0]  # Start with the first atomic term
+        if len(visited_children) > 1 and visited_children[1]:
+            for operation in visited_children[1]:
+                print(f"visit_term_4: operation = {operation}, type = {type(operation)}")
+                if isinstance(operation, list) and len(operation) == 3:
+                    print(f"visit_term_4: operation details = {operation}")
+                    op_text = operation[1].text.strip()
+                    op_key = next((k for k, v in repr_mappings.items() if v == op_text), None)
+                    if op_key:
+                        op = ConstNode(op_key)
+                        res = ApplNode(op, TupleNode((res, operation[2])))
+                    else:
+                        print(f"Unknown operator: {op_text}")
 
         print(f"visit_term_4: resulting term = {res}")
         return res
@@ -376,16 +398,9 @@ class MathNodeVisitor(NodeVisitor):
         for i, child in enumerate(visited_children):
             print(f"visit_term_3: child {i} = {child}, type = {type(child)}")
 
-        res = visited_children[0]
-        if visited_children[1]:
-            for operation in visited_children[1]:
-                op_text = operation[1][0].text.strip()
-                op_key = next((k for k, v in repr_mappings.items() if v == op_text), None)
-                if op_key:
-                    op = ConstNode(op_key)
-                    res = ApplNode(op, TupleNode((res, operation[3])))
-                else:
-                    print(f"Unknown operator: {op_text}")
+        res = visited_children[-1]  # The term at the end of the rule
+        if isinstance(visited_children[0], list) and visited_children[0]:
+            res = self.left_rec(visited_children[0], res)
 
         print(f"visit_term_3: resulting term = {res}")
         return res
@@ -395,19 +410,9 @@ class MathNodeVisitor(NodeVisitor):
         for i, child in enumerate(visited_children):
             print(f"visit_term_2: child {i} = {child}, type = {type(child)}")
 
-        res = visited_children[0]
-        if visited_children[1]:
-            for operation in visited_children[1]:
-                print(f"visit_term_2: operation = {operation}, type = {type(operation)}")
-                if isinstance(operation, list) and len(operation) == 4:
-                    print(f"visit_term_2: operation details = {operation}")
-                    op_text = operation[1][0].text.strip()
-                    op_key = next((k for k, v in repr_mappings.items() if v == op_text), None)
-                    if op_key:
-                        op = ConstNode(op_key)
-                        res = ApplNode(op, TupleNode((res, operation[3])))
-                    else:
-                        print(f"Unknown operator: {op_text}")
+        res = visited_children[-1]  # The term at the end of the rule
+        if isinstance(visited_children[0], list) and visited_children[0]:
+            res = self.left_rec(visited_children[0], res)
 
         print(f"visit_term_2: resulting term = {res}")
         return res
@@ -436,16 +441,9 @@ class MathNodeVisitor(NodeVisitor):
         for i, child in enumerate(visited_children):
             print(f"visit_term_0: child {i} = {child}, type = {type(child)}")
 
-        res = visited_children[0]
-        if visited_children[1]:
-            for operation in visited_children[1]:
-                op_text = operation[1][0].text.strip()
-                op_key = next((k for k, v in repr_mappings.items() if v == op_text), None)
-                if op_key:
-                    op = ConstNode(op_key)
-                    res = ApplNode(op, TupleNode((res, operation[3])))
-                else:
-                    print(f"Unknown operator: {op_text}")
+        res = visited_children[-1]  # The term at the end of the rule
+        if isinstance(visited_children[0], list) and visited_children[0]:
+            res = self.left_rec(visited_children[0], res)
 
         print(f"visit_term_0: resulting term = {res}")
         return res
