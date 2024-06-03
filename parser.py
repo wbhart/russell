@@ -359,97 +359,78 @@ space = ~"\s*"
         print(grammar)
     return grammar
 
-class MathNodeVisitor(NodeVisitor):
-    def left_rec(self, L, v):
-        """Turn a list L and final value v into a tree. Each element of the list
-        will contain 4 items [left, _, operator, _]. If L is empty only v is returned.
-        """
-        if hasattr(L, '__getitem__') and len(L) > 0:
-            x = L.pop()
-            op_text = x[2][0].text.strip()
-            op_key = next((k for k, v in repr_mappings.items() if v == op_text), None)
+def generate_visitor_methods(operators, predicates, functions):
+    visitor_methods = {}
+
+    # Generate methods for unary operators
+    unary_operators = [op for op in operators if op.associativity == Associativity.NON]
+    for op in unary_operators:
+        def visit_unary_op(self, node, visited_children):
+            child = visited_children[-1]
+            op_key = next((k for k, v in repr_mappings.items() if v == node.text.strip()), None)
             if op_key:
                 op = ConstNode(op_key)
-                left_child = x[0]
-                if isinstance(left_child, list):
-                    left_child = self.left_rec(left_child, x[0][0])
-                return ApplNode(op, TupleNode((left_child, v)))
+                result = ApplNode(op, TupleNode((child,)))
+                if visit_debug:
+                    print(f"visit_{op.name.lower()}: resulting term = {result}")
+                return result
             else:
-                print(f"Unknown operator: {op_text}")
-                return v  # Fallback if operator is unknown
-        else:
-            return v
+                raise ValueError(f"Unknown operator: {node.text.strip()}")
+        
+        method_name = f"visit_{op.name.lower()}"
+        visitor_methods[method_name] = visit_unary_op
 
+    # Generate methods for binary operators
+    binary_operators = [op for op in operators if op.associativity in (Associativity.LEFT, Associativity.RIGHT)]
+    for op in binary_operators:
+        if op.associativity == Associativity.LEFT:
+            def visit_left_associative_op(self, node, visited_children):
+                res = visited_children[0]
+                if len(visited_children) > 1 and visited_children[1]:
+                    for operation in visited_children[1]:
+                        if isinstance(operation, list) and len(operation) == 3:
+                            op_text = operation[1].text.strip()
+                            op_key = next((k for k, v in repr_mappings.items() if v == op_text), None)
+                            if op_key:
+                                op = ConstNode(op_key)
+                                res = ApplNode(op, TupleNode((res, operation[2])))
+                            else:
+                                print(f"Unknown operator: {op_text}")
+                if visit_debug:
+                    print(f"visit_{op.name.lower()}: resulting term = {res}")
+                return res
+
+            method_name = f"visit_{op.name.lower()}"
+            visitor_methods[method_name] = visit_left_associative_op
+
+        elif op.associativity == Associativity.RIGHT:
+            def visit_right_associative_op(self, node, visited_children):
+                res = visited_children[-1]
+                if len(visited_children) > 1 and visited_children[0]:
+                    for operation in reversed(visited_children[0]):
+                        if isinstance(operation, list) and len(operation) == 3:
+                            op_text = operation[1].text.strip()
+                            op_key = next((k for k, v in repr_mappings.items() if v == op_text), None)
+                            if op_key:
+                                op = ConstNode(op_key)
+                                res = ApplNode(op, TupleNode((operation[0], res)))
+                            else:
+                                print(f"Unknown operator: {op_text}")
+                if visit_debug:
+                    print(f"visit_{op.name.lower()}: resulting term = {res}")
+                return res
+
+            method_name = f"visit_{op.name.lower()}"
+            visitor_methods[method_name] = visit_right_associative_op
+
+    return visitor_methods
+
+class MathNodeVisitor(NodeVisitor):
     def visit_variable(self, node, visited_children):
         return VarNode(node.text)
 
     def visit_atomic(self, node, visited_children):
         return visited_children[0]
-
-    def visit_term_4(self, node, visited_children):
-        res = visited_children[0]  # Start with the first atomic term
-        if len(visited_children) > 1 and visited_children[1]:
-            for operation in visited_children[1]:
-                if isinstance(operation, list) and len(operation) == 3:
-                    op_text = operation[1].text.strip()
-                    op_key = next((k for k, v in repr_mappings.items() if v == op_text), None)
-                    if op_key:
-                        op = ConstNode(op_key)
-                        res = ApplNode(op, TupleNode((res, operation[2])))
-                    else:
-                        print(f"Unknown operator: {op_text}")
-
-        if visit_debug:
-            print(f"visit_term_4: resulting term = {res}")
-        
-        return res
-
-    def visit_term_3(self, node, visited_children):
-        res = visited_children[-1]  # The term at the end of the rule
-        if isinstance(visited_children[0], list) and visited_children[0]:
-            res = self.left_rec(visited_children[0], res)
-
-        if visit_debug:
-            print(f"visit_term_3: resulting term = {res}")
-        
-        return res
-
-    def visit_term_2(self, node, visited_children):
-        res = visited_children[-1]  # The term at the end of the rule
-        if isinstance(visited_children[0], list) and visited_children[0]:
-            res = self.left_rec(visited_children[0], res)
-
-        if visit_debug:
-            print(f"visit_term_2: resulting term = {res}")
-        
-        return res
-
-    def visit_term_1(self, node, visited_children):
-        res = visited_children[0]
-        if visited_children[1]:
-            for operation in visited_children[1]:
-                op_text = operation[1][0].text.strip()
-                op_key = next((k for k, v in repr_mappings.items() if v == op_text), None)
-                if op_key:
-                    op = ConstNode(op_key)
-                    res = ApplNode(op, TupleNode((res, operation[3])))
-                else:
-                    print(f"Unknown operator: {op_text}")
-
-        if visit_debug:
-            print(f"visit_term_1: resulting term = {res}")
-        
-        return res
-
-    def visit_term_0(self, node, visited_children):
-        res = visited_children[-1]  # The term at the end of the rule
-        if isinstance(visited_children[0], list) and visited_children[0]:
-            res = self.left_rec(visited_children[0], res)
-
-        if visit_debug:
-            print(f"visit_term_0: resulting term = {res}")
-        
-        return res
 
     def visit_term(self, node, visited_children):
         res = visited_children[0]
@@ -580,3 +561,8 @@ generate_mappings(operators, predicates, functions, constants)
 
 # Create the visitor instance
 visitor = MathNodeVisitor()
+
+# Generate visitor methods dynamically
+visitor_methods = generate_visitor_methods(operators, predicates, functions)
+for method_name, method in visitor_methods.items():
+    setattr(MathNodeVisitor, method_name, method)
