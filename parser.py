@@ -9,9 +9,12 @@ from nodes import VarNode, ApplNode, ConstNode, TupleNode, \
      repr_mappings, fixity
 from definitions import Fixity, Associativity
 
-grammar_debug = True  # whether to print debug statements
+generated_debug = True  # whether to print the generated grammar
+grammar_debug   = False # whether to print grammar debug statements
+visit_debug     = False # whether to print visitor debug statements
 
 # Sets
+
 set_types = [('Set', r'Set', 'Set')]
 
 set_consts = [('EmptySet', r'\emptyset', '\u2205')]
@@ -35,6 +38,7 @@ set_binary_preds = [('Subset', r'\subset', ' \u2282 ', Fixity.INFIX),
                     ('Element', r'\in', ' \u2208 ', Fixity.INFIX)]
                   
 # Numbers
+
 num_types = [('Natural', r'\\mathbb{N}', '\u2115'),
              ('Integer', r'\\mathbb{Z}', '\u2124'),
              ('Rational', r'\\mathbb{Q}', '\u211a'),
@@ -62,6 +66,7 @@ num_binary_preds = [('LessThan', '<', ' < ', Fixity.INFIX),
                     ('NotEqual', r'\neq', ' \u2260 ', Fixity.INFIX)]
 
 # Groups
+
 group_types = [('Group', r'Group', 'Group')]
 
 group_consts = []
@@ -339,7 +344,7 @@ space = ~"\s*"
     grammar_parts = [top_formula_rule] + quantifier_rules + type_specification_rules + [logical_formula_rule] + logical_rules + formula_definitions + term_definitions + constant_rules + atomic_definitions
 
     grammar = "\n".join(grammar_parts).strip()
-    if grammar_debug:
+    if generated_debug:
         print("Generated grammar:")
         print(grammar)
     return grammar
@@ -372,16 +377,10 @@ class MathNodeVisitor(NodeVisitor):
         return visited_children[0]
 
     def visit_term_4(self, node, visited_children):
-        print(f"visit_term_4: number of children = {len(visited_children)}")
-        for i, child in enumerate(visited_children):
-            print(f"visit_term_4: child {i} = {child}, type = {type(child)}")
-
         res = visited_children[0]  # Start with the first atomic term
         if len(visited_children) > 1 and visited_children[1]:
             for operation in visited_children[1]:
-                print(f"visit_term_4: operation = {operation}, type = {type(operation)}")
                 if isinstance(operation, list) and len(operation) == 3:
-                    print(f"visit_term_4: operation details = {operation}")
                     op_text = operation[1].text.strip()
                     op_key = next((k for k, v in repr_mappings.items() if v == op_text), None)
                     if op_key:
@@ -390,38 +389,32 @@ class MathNodeVisitor(NodeVisitor):
                     else:
                         print(f"Unknown operator: {op_text}")
 
-        print(f"visit_term_4: resulting term = {res}")
+        if visit_debug:
+            print(f"visit_term_4: resulting term = {res}")
+        
         return res
 
     def visit_term_3(self, node, visited_children):
-        print(f"visit_term_3: number of children = {len(visited_children)}")
-        for i, child in enumerate(visited_children):
-            print(f"visit_term_3: child {i} = {child}, type = {type(child)}")
-
         res = visited_children[-1]  # The term at the end of the rule
         if isinstance(visited_children[0], list) and visited_children[0]:
             res = self.left_rec(visited_children[0], res)
 
-        print(f"visit_term_3: resulting term = {res}")
+        if visit_debug:
+            print(f"visit_term_3: resulting term = {res}")
+        
         return res
 
     def visit_term_2(self, node, visited_children):
-        print(f"visit_term_2: number of children = {len(visited_children)}")
-        for i, child in enumerate(visited_children):
-            print(f"visit_term_2: child {i} = {child}, type = {type(child)}")
-
         res = visited_children[-1]  # The term at the end of the rule
         if isinstance(visited_children[0], list) and visited_children[0]:
             res = self.left_rec(visited_children[0], res)
 
-        print(f"visit_term_2: resulting term = {res}")
+        if visit_debug:
+            print(f"visit_term_2: resulting term = {res}")
+        
         return res
 
     def visit_term_1(self, node, visited_children):
-        print(f"visit_term_1: number of children = {len(visited_children)}")
-        for i, child in enumerate(visited_children):
-            print(f"visit_term_1: child {i} = {child}, type = {type(child)}")
-
         res = visited_children[0]
         if visited_children[1]:
             for operation in visited_children[1]:
@@ -433,26 +426,22 @@ class MathNodeVisitor(NodeVisitor):
                 else:
                     print(f"Unknown operator: {op_text}")
 
-        print(f"visit_term_1: resulting term = {res}")
+        if visit_debug:
+            print(f"visit_term_1: resulting term = {res}")
+        
         return res
 
     def visit_term_0(self, node, visited_children):
-        print(f"visit_term_0: number of children = {len(visited_children)}")
-        for i, child in enumerate(visited_children):
-            print(f"visit_term_0: child {i} = {child}, type = {type(child)}")
-
         res = visited_children[-1]  # The term at the end of the rule
         if isinstance(visited_children[0], list) and visited_children[0]:
             res = self.left_rec(visited_children[0], res)
 
-        print(f"visit_term_0: resulting term = {res}")
+        if visit_debug:
+            print(f"visit_term_0: resulting term = {res}")
+        
         return res
 
     def visit_term(self, node, visited_children):
-        print(f"visit_term: number of children = {len(visited_children)}")
-        for i, child in enumerate(visited_children):
-            print(f"visit_term: child {i} = {child}, type = {type(child)}")
-
         res = visited_children[0]
         if len(visited_children) > 1 and visited_children[1]:
             for operation in visited_children[1]:
@@ -464,14 +453,12 @@ class MathNodeVisitor(NodeVisitor):
                 else:
                     print(f"Unknown operator: {op_text}")
 
-        print(f"visit_term: resulting term = {res}")
+        if visit_debug:
+            print(f"visit_term: resulting term = {res}")
+        
         return res
 
     def visit_element_formula(self, node, visited_children):
-        print(f"visit_element_formula: number of children = {len(visited_children)}")
-        for i, child in enumerate(visited_children):
-            print(f"visit_element_formula: child {i} = {child}, type = {type(child)}")
-
         left = visited_children[0]
         right = visited_children[4]
         op_text = visited_children[2].text.strip()
@@ -482,23 +469,19 @@ class MathNodeVisitor(NodeVisitor):
         else:
             print(f"Unknown operator: {op_text}")
 
-        print(f"visit_element_formula: {element_node}")
+        if visit_debug:
+            print(f"visit_element_formula: {element_node}")
+        
         return element_node
 
     def visit_atomic_formula(self, node, visited_children):
         return visited_children[0]
 
     def visit_logical_implies(self, node, visited_children):
-        print(f"visit_logical_implies: number of children = {len(visited_children)}")
-        for i, child in enumerate(visited_children):
-            print(f"visit_logical_implies: child {i} = {child}, type = {type(child)}")
-
         res = visited_children[0]
         if visited_children[1]:
             for operation in visited_children[1]:
-                print(f"visit_logical_implies: operation = {operation}, type = {type(operation)}")
                 if isinstance(operation, list) and len(operation) == 4:
-                    print(f"visit_logical_implies: operation details = {operation}")
                     op_text = operation[1][0].text.strip()
                     op_key = next((k for k, v in repr_mappings.items() if v == op_text), None)
                     if op_key:
@@ -507,20 +490,16 @@ class MathNodeVisitor(NodeVisitor):
                     else:
                         print(f"Unknown operator: {op_text}")
 
-        print(f"visit_logical_implies: resulting term = {res}")
+        if visit_debug:
+            print(f"visit_logical_implies: resulting term = {res}")
+        
         return res
 
     def visit_logical_binary(self, node, visited_children):
-        print(f"visit_logical_binary: number of children = {len(visited_children)}")
-        for i, child in enumerate(visited_children):
-            print(f"visit_logical_binary: child {i} = {child}, type = {type(child)}")
-
         res = visited_children[0]
         if visited_children[1]:
             for operation in visited_children[1]:
-                print(f"visit_logical_binary: operation = {operation}, type = {type(operation)}")
                 if isinstance(operation, list) and len(operation) == 4:
-                    print(f"visit_logical_binary: operation details = {operation}")
                     op_text = operation[1][0].text.strip()
                     op_key = next((k for k, v in repr_mappings.items() if v == op_text), None)
                     if op_key:
@@ -529,7 +508,9 @@ class MathNodeVisitor(NodeVisitor):
                     else:
                         print(f"Unknown operator: {op_text}")
 
-        print(f"visit_logical_binary: resulting term = {res}")
+        if visit_debug:
+            print(f"visit_logical_binary: resulting term = {res}")
+        
         return res
 
     def visit_logical_atomic(self, node, visited_children):
@@ -537,6 +518,28 @@ class MathNodeVisitor(NodeVisitor):
 
     def visit_logical_formula(self, node, visited_children):
         return visited_children[0]
+
+    def visit_equal_formula(self, node, visited_children):
+        lhs = visited_children[0]
+        rhs = visited_children[4]  # Assuming "term space '=' space term"
+        op = ConstNode('Equal')
+        result = ApplNode(op, TupleNode((lhs, rhs)))
+
+        if visit_debug:
+            print(f"visit_equal_formula: resulting term = {result}")
+        
+        return result
+
+    def visit_notequal_formula(self, node, visited_children):
+        lhs = visited_children[0]
+        rhs = visited_children[4]  # Assuming "term space '\neq' space term"
+        op = ConstNode('NotEqual')
+        result = ApplNode(op, TupleNode((lhs, rhs)))
+
+        if visit_debug:
+            print(f"visit_equal_formula: resulting term = {result}")
+        
+        return result
 
     def visit_formula(self, node, visited_children):
         return visited_children[0]
@@ -567,13 +570,3 @@ generate_mappings(operators, predicates, functions, constants)
 
 # Create the visitor instance
 visitor = MathNodeVisitor()
-
-# Example usage with parsing
-#example_formula = r'\forall x : \mathbb{N} (x \in z \implies (\exists y (y = x \cup \emptyset)))'
-example_formula = r'x \in z \cup w'
-parsed_tree = formula.parse(example_formula)
-result = visitor.visit(parsed_tree)
-
-# Print the results using repr and str
-print(repr(result))
-print(str(result))
