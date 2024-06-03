@@ -260,13 +260,25 @@ def generate_parsimonious_grammar(operators, predicates, functions, constants, t
             formula_definitions.append(f"{formula_rule_name} = \"{predicate.notation}\" space term")
         formula_rules.append(formula_rule_name)
 
-    # Generate term rules with proper handling of left, right, and non-associativity
-    precedence_levels = sorted(set(op.precedence for op in operators))
+    # Separate unary and binary operators
+    unary_operators = [op for op in operators if op.associativity == Associativity.NON]
+    binary_operators = [op for op in operators if op.associativity in (Associativity.LEFT, Associativity.RIGHT)]
+
+    # Generate unary operator rules with higher precedence than binary operators
+    for precedence, unary_op in enumerate(unary_operators, start=len(binary_operators) + 1):
+        rule_name = precedence_to_rule_name(precedence, 'term')
+        next_rule = precedence_to_rule_name(precedence + 1, 'term') if precedence + 1 <= len(unary_operators) + len(binary_operators) else "atomic"
+        unary_op_choices = f'"{unary_op.notation}"'
+        term_definitions.append(f"{rule_name} = {unary_op_choices} space {next_rule}")
+        term_rules.append(rule_name)
+
+    # Generate binary operator rules
+    precedence_levels = sorted(set(op.precedence for op in binary_operators))
     for precedence in precedence_levels:
         rule_name = precedence_to_rule_name(precedence, 'term')
         next_rule = precedence_to_rule_name(precedence + 1, 'term') if precedence + 1 in precedence_levels else "atomic"
-
-        ops_at_level = [op for op in operators if op.precedence == precedence]
+        
+        ops_at_level = [op for op in binary_operators if op.precedence == precedence]
         associativity_set = {op.associativity for op in ops_at_level}
         if len(associativity_set) > 1:
             raise ValueError(f"Inconsistent associativity detected at precedence level {precedence}")
@@ -279,8 +291,6 @@ def generate_parsimonious_grammar(operators, predicates, functions, constants, t
             term_definitions.append(f"{rule_name} = ({next_rule} space ({op_choices}) space)* {next_rule}")
         elif associativity == Associativity.RIGHT:
             term_definitions.append(f"{rule_name} = {next_rule} (space ({op_choices}) space {next_rule})*")
-        elif associativity == Associativity.NON:
-            term_definitions.append(f"{rule_name} = {next_rule} space ({op_choices}) space {next_rule}")
         else:
             raise ValueError(f"Unsupported associativity: {associativity}")
 
